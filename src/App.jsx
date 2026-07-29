@@ -18,6 +18,7 @@ import Settings               from './pages/Settings/Settings';
 import RecentUpdates          from './pages/RecentUpdates/RecentUpdates';
 import CommunityPeople        from './pages/CommunityPeople/CommunityPeople';
 import MapPage                from './pages/MapPage/MapPage';
+import RainForecast           from './pages/RainForecast/RainForecast';
 
 /** Redirects to /login if not authenticated */
 function RequireAuth({ children }) {
@@ -70,6 +71,7 @@ export default function App() {
                       <Route path="/civil-protection"   element={<CivilProtectionAgent />} />
                       <Route path="/map"                element={<MapPage />} />
                       <Route path="/settings"           element={<Settings />} />
+                      <Route path="/rain-forecast"       element={<RainForecast />} />
 
                       {/* User only (admin gets redirected to /) */}
                       <Route path="/citizen-sos"        element={<RequireUser><CitizenSOS /></RequireUser>} />

@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Droplets, Brain, Building2, Shield,
   AlertTriangle, Map, Bot, FileText, Settings,
-  Waves, Bell, Users, MapPin
+  Waves, Bell, Users, MapPin, CloudRain
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -15,6 +15,7 @@ const navItems = [
   { path: '/municipal-agent',    label: 'Municipal Decision', icon: Building2,       adminOnly: true,  userOnly: false },
   { path: '/civil-protection',   label: 'Civil Protection',   icon: Shield,          adminOnly: false, userOnly: false },
   { path: '/map',                label: 'Map',                icon: MapPin,          adminOnly: false, userOnly: false },
+  { path: '/rain-forecast',      label: 'Rain Forecast',      icon: CloudRain,       adminOnly: false, userOnly: false },
   { path: '/citizen-sos',        label: 'Citizen SOS',        icon: AlertTriangle,   adminOnly: false, userOnly: true  },
   { path: '/rescue-planner',     label: 'Rescue Planner',     icon: Map,             adminOnly: true,  userOnly: false },
   { path: '/agent-status',       label: 'AI Agent Status',    icon: Bot,             adminOnly: true,  userOnly: false },
