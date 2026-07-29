@@ -226,10 +226,11 @@ async def register(body: RegisterRequest, request: Request):
     await _insert_user(user_doc)
 
     base_url = str(request.base_url).rstrip("/")
-    approve_url = f"{base_url}/api/auth/approve?token={approval_token}"
+    approve_url = f"{base_url}/api/auth/approve?token={approval_token}&action=approve"
+    reject_url  = f"{base_url}/api/auth/approve?token={approval_token}&action=reject"
 
     if body.role == "admin":
-        # 1. Email to super admin (likith824788@gmail.com) with approve button link
+        # 1. Email to super admin (likith824788@gmail.com) with Accept and Reject buttons
         try:
             await send_flood_alert(
                 subject=f"[HydroShield] Admin Access Request from {body.full_name}",
@@ -238,6 +239,7 @@ async def register(body: RegisterRequest, request: Request):
                     username=display_username,
                     email=email_clean,
                     approve_url=approve_url,
+                    reject_url=reject_url,
                     registered_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
                 ),
                 recipient_email=ADMIN_EMAIL,
@@ -267,137 +269,76 @@ async def register(body: RegisterRequest, request: Request):
             "role": "admin",
         }
 
-    else:
-        # User: auto-approved, send welcome email
-        try:
-            await send_flood_alert(
-                subject="[HydroShield] Welcome! Your User Account is Ready",
-                body_html=build_user_welcome_email(
-                    full_name=body.full_name,
-                    username=display_username,
-                ),
-                recipient_email=email_clean,
-                email_type="User Welcome",
-            )
-        except Exception as e:
-            print(f"[Auth] Notice — Welcome email error: {e}")
-
-        return {
-            "success": True,
-            "status": "active",
-            "message": "Account created successfully!",
-            "role": "user",
-            "user": {
-                "name": body.full_name,
-                "username": display_username,
-                "role": "user",
-                "email": email_clean,
-            }
-        }
-
-
-# ── POST /api/auth/login ──────────────────────────────────────────────────
-@router.post("/login")
-async def login(body: LoginRequest):
-    email_clean = body.email.strip().lower()
-
-    # 1. Look up by email + role
-    user = await _find_user_by_email_and_role(email_clean, body.role)
-
-    # 2. Look up by email only if not found under exact role
-    if not user:
-        user = await _find_user_by_email(email_clean)
-
-    # 3. Look up by username or in-memory fallback
-    if not user:
-        col = await _get_collection()
-        if col is not None:
-            try:
-                user = await col.find_one({"username": body.email.strip()})
-            except Exception:
-                pass
-        if not user:
-            user = next((u for u in _IN_MEMORY_USERS if u["username"] == body.email.strip() or u["email"].lower() == email_clean), None)
-
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-    # Password check with fallback for casing
-    pwd = body.password
-    valid = verify_password(pwd, user["password_hash"])
-    if not valid:
-        valid = verify_password(pwd.lower(), user["password_hash"]) or verify_password(pwd.capitalize(), user["password_hash"])
-
-    if not valid:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-    if user["status"] == "pending":
-        raise HTTPException(status_code=403, detail="Your admin account is awaiting approval. Check your email for updates.")
-
-    if user["status"] != "active":
-        raise HTTPException(status_code=403, detail="Your account has been suspended. Contact the administrator.")
-
-    # Update last login
-    col = await _get_collection()
-    if col is not None:
-        try:
-            await col.update_one(
-                {"email": user["email"], "role": body.role},
-                {"$set": {"last_login": datetime.utcnow().isoformat()}}
-            )
-        except Exception:
-            pass
-
-    return {
-        "success": True,
-        "user": {
-            "name": user["full_name"],
-            "username": user.get("username", user["email"].split("@")[0]),
-            "role": user["role"],
-            "email": user["email"],
-        }
-    }
-
 
 # ── GET /api/auth/approve ─────────────────────────────────────────────────
 @router.get("/approve", response_class=HTMLResponse)
-async def approve_admin(token: str):
+async def approve_admin(token: str, action: str = "approve"):
     user = await _find_user_by_token(token)
 
     if not user:
         return HTMLResponse(content=_approval_page(
             success=False,
-            message="Invalid or expired approval link. This token has already been used or does not exist.",
+            message="Invalid or expired approval link. This decision token has already been used or does not exist.",
         ))
 
-    if user.get("status") == "active":
+    current_status = user.get("status")
+
+    if current_status == "active":
         return HTMLResponse(content=_approval_page(
             success=True,
-            message=f"This account ({user['username']}) has already been approved.",
+            message=f"This account ({user['email']}) has already been APPROVED.",
             already_done=True,
         ))
 
-    # Approve
-    await _update_user_status(token, "active")
+    if current_status == "rejected":
+        return HTMLResponse(content=_approval_page(
+            success=False,
+            message=f"This account ({user['email']}) has already been REJECTED.",
+            already_done=True,
+        ))
 
-    # Send confirmation email to the new admin
-    await send_flood_alert(
-        subject="[HydroShield] 🎉 Your Admin Access Has Been Approved!",
-        body_html=build_admin_approval_granted_email(
-            full_name=user["full_name"],
+    if action == "reject":
+        await _update_user_status(token, "rejected")
+        try:
+            await send_flood_alert(
+                subject="[HydroShield] Admin Access Request Status",
+                body_html=build_admin_rejection_email(full_name=user["full_name"]),
+                recipient_email=user["email"],
+                email_type="Admin Access Rejected",
+            )
+        except Exception as e:
+            print(f"[Auth] Notice — Rejection email sending failed: {e}")
+
+        return HTMLResponse(content=_approval_page(
+            success=False,
+            name=user["full_name"],
             username=user["username"],
-        ),
-        recipient_email=user["email"],
-        email_type="Admin Access Granted",
-    )
+            email=user["email"],
+            message=f"Admin request for {user['full_name']} ({user['email']}) has been REJECTED. A notification email was sent to {user['email']}.",
+        ))
 
-    return HTMLResponse(content=_approval_page(
-        success=True,
-        name=user["full_name"],
-        username=user["username"],
-        email=user["email"],
-        message=f"Admin access granted to {user['full_name']} ({user['username']}). A confirmation email has been sent to {user['email']}.",
-    ))
+    else: # approve / accept
+        await _update_user_status(token, "active")
+        try:
+            await send_flood_alert(
+                subject="[HydroShield] 🎉 Your Admin Access Has Been Approved!",
+                body_html=build_admin_approval_granted_email(
+                    full_name=user["full_name"],
+                    username=user["username"],
+                ),
+                recipient_email=user["email"],
+                email_type="Admin Access Granted",
+            )
+        except Exception as e:
+            print(f"[Auth] Notice — Approval granted email error: {e}")
+
+        return HTMLResponse(content=_approval_page(
+            success=True,
+            name=user["full_name"],
+            username=user["username"],
+            email=user["email"],
+            message=f"Admin access ACCEPTED for {user['full_name']} ({user['email']}). A confirmation email was sent to {user['email']}.",
+        ))
 
 
 # ── GET /api/auth/users ───────────────────────────────────────────────────

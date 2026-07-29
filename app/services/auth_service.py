@@ -58,6 +58,7 @@ def build_admin_approval_request_email(
     username: str,
     email: str,
     approve_url: str,
+    reject_url: str,
     registered_at: str,
 ) -> str:
     """Email sent to likith824788@gmail.com when a new admin registration is requested."""
@@ -76,7 +77,7 @@ def build_admin_approval_request_email(
 
       <div style="padding:28px;">
         <p style="font-size:15px;color:#374151;margin:0 0 20px;">
-          A new user has requested <strong>Administrator</strong> access to the HydroShield system. Please review the details below and approve or decline.
+          A new user has requested <strong>Administrator</strong> access to the HydroShield system. Please review the details below and select <strong>Accept</strong> or <strong>Reject</strong>.
         </p>
 
         <!-- User Details -->
@@ -90,7 +91,7 @@ def build_admin_approval_request_email(
               <td style="padding:11px 18px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">{full_name}</td>
             </tr>
             <tr>
-              <td style="padding:11px 18px;color:#64748b;border-bottom:1px solid #f1f5f9;">Username</td>
+              <td style="padding:11px 18px;color:#64748b;border-bottom:1px solid #f1f5f9;">Username / Identifier</td>
               <td style="padding:11px 18px;color:#0f172a;font-weight:600;border-bottom:1px solid #f1f5f9;">{username}</td>
             </tr>
             <tr>
@@ -104,21 +105,55 @@ def build_admin_approval_request_email(
           </table>
         </div>
 
-        <!-- Approve Button -->
-        <div style="text-align:center;margin-bottom:24px;">
-          <a href="{approve_url}" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#15803d);color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:0.02em;box-shadow:0 6px 20px rgba(22,163,74,0.35);">
-            ✅ Approve Admin Access
+        <!-- Action Buttons (Accept & Reject) -->
+        <div style="display:flex;gap:14px;justify-content:center;margin-bottom:24px;">
+          <a href="{approve_url}" style="flex:1;max-width:200px;text-align:center;background:linear-gradient(135deg,#16a34a,#15803d);color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(22,163,74,0.35);">
+            ✅ Accept Request
+          </a>
+          <a href="{reject_url}" style="flex:1;max-width:200px;text-align:center;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#ffffff;text-decoration:none;padding:14px 20px;border-radius:10px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(220,38,38,0.35);">
+            ❌ Reject Request
           </a>
         </div>
 
         <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">
-          If you did not expect this request or want to deny it, simply ignore this email.<br/>
-          The request will remain pending and the user will not gain access.
+          Clicking either button will update the user status and automatically send a notification email to the applicant.
         </p>
       </div>
 
       <div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
-        HydroShield Auth System · Admin Notification · <a href="{approve_url}" style="color:#7c3aed;">{approve_url[:60]}...</a>
+        HydroShield Auth System · Admin Decision Request
+      </div>
+    </div>
+    """
+
+
+def build_admin_rejection_email(full_name: str) -> str:
+    """Email sent to applicant when their admin request is rejected."""
+    return f"""
+    <div style="font-family:'Inter',Arial,sans-serif;max-width:620px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(220,38,38,0.1);">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);padding:32px 28px;text-align:center;">
+        <div style="font-size:40px;margin-bottom:8px;">❌</div>
+        <h1 style="color:#ffffff;font-size:22px;margin:0;font-weight:800;">
+          Admin Request Status
+        </h1>
+        <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:8px 0 0;">
+          HydroShield — AI Flood Management System
+        </p>
+      </div>
+
+      <div style="padding:28px;">
+        <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;">
+          Hi <strong>{full_name}</strong>, your request for <strong>Administrator</strong> access to HydroShield was not approved by the system administrator at this time.
+        </p>
+
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:18px;margin-bottom:24px;font-size:13px;color:#991b1b;">
+          If you believe this was an error, please contact the administrator directly at <strong>likith824788@gmail.com</strong>.
+        </div>
+      </div>
+
+      <div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
+        HydroShield AI Disaster Management System · Admin Decision
       </div>
     </div>
     """

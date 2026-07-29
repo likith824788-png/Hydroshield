@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Save, MapPin, LogOut, Navigation, Compass, Search } from 'lucide-react';
+import { Save, MapPin, LogOut, Navigation, Compass, Search, User, Mail, Shield } from 'lucide-react';
 
 const PRESET_CITIES = [
   { name: 'Bengaluru, India',  lat: 12.9716, lng: 77.5946 },
@@ -21,9 +21,11 @@ const OPENWEATHER_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || '';
 
 export default function Settings() {
   const { settings: appSettings, setSettings, loadSettings } = useApp();
-  const { logout } = useAuth();
+  const { user, login: setAuthUser, logout } = useAuth();
   const navigate   = useNavigate();
   const [form, setForm] = useState({ ...appSettings });
+  const [profileName, setProfileName]   = useState(user?.name || user?.full_name || 'System User');
+  const [profileEmail, setProfileEmail] = useState(user?.email || 'user@example.com');
   const [saving, setSaving]         = useState(false);
   const [gettingGps, setGettingGps] = useState(false);
   const [geocoding, setGeocoding]   = useState(false);
@@ -206,10 +208,17 @@ export default function Settings() {
       await settingsAPI.update(form);
       setSettings(form);
       await loadSettings();
-      toast.success(`Location set to ${form.location_name} (${form.latitude}, ${form.longitude})`);
-      navigate('/'); // Navigate to Dashboard after saving settings
+      if (user) {
+        setAuthUser({
+          ...user,
+          name: profileName.trim(),
+          email: profileEmail.trim(),
+        });
+      }
+      toast.success(`Settings saved! Location: ${form.location_name}`);
+      navigate('/');
     } catch (e) {
-      toast.error(`Failed to save location settings: ${e.message}`);
+      toast.error(`Failed to save settings: ${e.message}`);
     } finally {
       setSaving(false);
     }
@@ -224,11 +233,57 @@ export default function Settings() {
     <div className="page-container stagger-children">
       <div className="page-header">
         <h1 className="page-title">System Settings</h1>
-        <p className="page-subtitle">Configure monitoring location coordinates and telemetry refresh interval</p>
+        <p className="page-subtitle">Configure personal profile details and monitoring location coordinates</p>
         <div className="glow-line" />
       </div>
 
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+        {/* Personal Information Card */}
+        <div className="glass-card" style={{ padding: '32px', marginBottom: '24px' }}>
+          <div className="card-header" style={{ marginBottom: '20px' }}>
+            <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="card-icon-wrapper"><User size={16} /></div>
+                Personal Information
+              </div>
+              <span className="badge badge-blue" style={{ textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>
+                {user?.role === 'admin' ? 'Administrator' : 'User'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="profile-name">Full Name</label>
+              <div className="form-input-wrapper">
+                <input
+                  id="profile-name"
+                  type="text"
+                  className="form-input"
+                  value={profileName}
+                  onChange={e => setProfileName(e.target.value)}
+                  placeholder="Your Full Name"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="profile-email">Email Address</label>
+              <div className="form-input-wrapper">
+                <input
+                  id="profile-email"
+                  type="email"
+                  className="form-input"
+                  value={profileEmail}
+                  onChange={e => setProfileEmail(e.target.value)}
+                  placeholder="your.email@example.com"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Location Configuration Card */}
         <div className="glass-card" style={{ padding: '32px' }}>
           <div className="card-header">
             <div className="card-title">
