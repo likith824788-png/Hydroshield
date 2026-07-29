@@ -46,9 +46,9 @@ _IN_MEMORY_USERS: list = [
     {
         "_id": "demo-admin",
         "full_name": "Admin Control",
-        "username": "admin",
+        "username": "likith",
         "email": ADMIN_EMAIL,
-        "password_hash": hash_password("hydroshield@admin"),
+        "password_hash": hash_password("Hydroshield"),
         "role": "admin",
         "status": "active",
         "registered_at": "2024-01-01T00:00:00",
