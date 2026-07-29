@@ -103,11 +103,16 @@ export default function Login() {
         role: activeTab,
       });
 
-      if (res.status === 'pending') {
+      if (res?.status === 'pending') {
         setPendingApproval(true);
-        setSuccessMsg(res.message || `Your admin request has been submitted! An approval email was sent to ${signupEmail}.`);
+        setSuccessMsg(res?.message || `Your admin request has been submitted! An approval email was sent to ${signupEmail}.`);
       } else {
-        login(res.user);
+        const userObj = res?.user || {
+          name: signupFullName.trim(),
+          email: signupEmail.trim().toLowerCase(),
+          role: activeTab,
+        };
+        login(userObj);
         navigate('/', { replace: true });
       }
     } catch (err) {

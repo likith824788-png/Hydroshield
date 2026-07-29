@@ -269,6 +269,34 @@ async def register(body: RegisterRequest, request: Request):
             "role": "admin",
         }
 
+    else:
+        # User: auto-approved, send welcome email
+        try:
+            await send_flood_alert(
+                subject="[HydroShield] Welcome! Your User Account is Ready",
+                body_html=build_user_welcome_email(
+                    full_name=body.full_name,
+                    username=display_username,
+                ),
+                recipient_email=email_clean,
+                email_type="User Welcome",
+            )
+        except Exception as e:
+            print(f"[Auth] Notice — Welcome email error: {e}")
+
+        return {
+            "success": True,
+            "status": "active",
+            "message": "Account created successfully!",
+            "role": "user",
+            "user": {
+                "name": body.full_name,
+                "username": display_username,
+                "role": "user",
+                "email": email_clean,
+            }
+        }
+
 
 # ── GET /api/auth/approve ─────────────────────────────────────────────────
 @router.get("/approve", response_class=HTMLResponse)
