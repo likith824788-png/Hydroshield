@@ -332,6 +332,12 @@ export default function Login() {
                   </div>
                 </div>
 
+                {error && (
+                  <div className="login-error">
+                    <AlertCircle size={14} /> {error}
+                  </div>
+                )}
+
                 <button
                   id="signup-submit-btn"
                   type="submit"

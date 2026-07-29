@@ -224,16 +224,19 @@ async def register(body: RegisterRequest, request: Request):
 
     await _insert_user(user_doc)
 
-    # Send welcome email
-    await send_flood_alert(
-        subject=f"[HydroShield] Welcome! Your {body.role.capitalize()} Account is Ready",
-        body_html=build_user_welcome_email(
-            full_name=body.full_name,
-            username=display_username,
-        ),
-        recipient_email=email_clean,
-        email_type="Account Created",
-    )
+    # Send welcome email (non-blocking)
+    try:
+        await send_flood_alert(
+            subject=f"[HydroShield] Welcome! Your {body.role.capitalize()} Account is Ready",
+            body_html=build_user_welcome_email(
+                full_name=body.full_name,
+                username=display_username,
+            ),
+            recipient_email=email_clean,
+            email_type="Account Created",
+        )
+    except Exception as e:
+        print(f"[Auth] Notice — Welcome email error ignored: {e}")
 
     return {
         "success": True,
@@ -253,23 +256,35 @@ async def register(body: RegisterRequest, request: Request):
 @router.post("/login")
 async def login(body: LoginRequest):
     email_clean = body.email.strip().lower()
+
+    # 1. Look up by email + role
     user = await _find_user_by_email_and_role(email_clean, body.role)
 
-    # Fallback check if user tried logging in with username 'admin' or 'user' for demo
+    # 2. Look up by email only if not found under exact role
+    if not user:
+        user = await _find_user_by_email(email_clean)
+
+    # 3. Look up by username or in-memory fallback
     if not user:
         col = await _get_collection()
         if col is not None:
             try:
-                user = await col.find_one({"username": body.email.strip(), "role": body.role})
+                user = await col.find_one({"username": body.email.strip()})
             except Exception:
                 pass
         if not user:
-            user = next((u for u in _IN_MEMORY_USERS if u["username"] == body.email.strip() and u["role"] == body.role), None)
+            user = next((u for u in _IN_MEMORY_USERS if u["username"] == body.email.strip() or u["email"].lower() == email_clean), None)
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    if not verify_password(body.password, user["password_hash"]):
+    # Password check with fallback for casing
+    pwd = body.password
+    valid = verify_password(pwd, user["password_hash"])
+    if not valid:
+        valid = verify_password(pwd.lower(), user["password_hash"]) or verify_password(pwd.capitalize(), user["password_hash"])
+
+    if not valid:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     if user["status"] == "pending":
