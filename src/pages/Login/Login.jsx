@@ -103,9 +103,13 @@ export default function Login() {
         role: activeTab,
       });
 
-      // Auto-login immediately!
-      login(res.user);
-      navigate('/', { replace: true });
+      if (res.status === 'pending') {
+        setPendingApproval(true);
+        setSuccessMsg(res.message || `Your admin request has been submitted! An approval email was sent to ${signupEmail}.`);
+      } else {
+        login(res.user);
+        navigate('/', { replace: true });
+      }
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
