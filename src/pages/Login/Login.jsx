@@ -103,15 +103,9 @@ export default function Login() {
         role: activeTab,
       });
 
-      if (activeTab === 'admin') {
-        // Admin pending approval
-        setPendingApproval(true);
-        setSuccessMsg(`Your admin request has been submitted! An approval email was sent to the system administrator. You will receive a confirmation at ${signupEmail} once approved.`);
-      } else {
-        // User: auto-login
-        login(res.user);
-        navigate('/', { replace: true });
-      }
+      // Auto-login immediately!
+      login(res.user);
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -254,11 +248,11 @@ export default function Login() {
                   {activeTab === 'admin' ? <Shield size={26} /> : <UserPlus size={26} />}
                 </div>
                 <h2 className="login-title">
-                  {activeTab === 'admin' ? 'Request Admin Access' : 'Create User Account'}
+                  {activeTab === 'admin' ? 'Create Admin Account' : 'Create User Account'}
                 </h2>
                 <p className="login-desc">
                   {activeTab === 'admin'
-                    ? 'Admin accounts require approval from the system administrator.'
+                    ? 'Sign up for full HydroShield Admin access.'
                     : 'Sign up to access flood monitoring.'}
                 </p>
               </div>
@@ -338,20 +332,6 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Admin notice */}
-                {activeTab === 'admin' && (
-                  <div className="login-admin-notice">
-                    <Shield size={13} />
-                    Your request will be sent to the system administrator for approval. You'll receive an email confirmation.
-                  </div>
-                )}
-
-                {error && (
-                  <div className="login-error">
-                    <AlertCircle size={14} /> {error}
-                  </div>
-                )}
-
                 <button
                   id="signup-submit-btn"
                   type="submit"
@@ -360,8 +340,8 @@ export default function Login() {
                 >
                   {loading ? <span className="login-spinner" /> : <UserPlus size={16} />}
                   {loading
-                    ? (activeTab === 'admin' ? 'Submitting Request...' : 'Creating Account...')
-                    : (activeTab === 'admin' ? 'Submit Request to Admin' : 'Create Account')}
+                    ? 'Creating Account...'
+                    : (activeTab === 'admin' ? 'Create Admin Account' : 'Create User Account')}
                 </button>
 
                 <p className="login-switch-hint">

@@ -205,9 +205,8 @@ async def register(body: RegisterRequest, request: Request):
     # Generate display username from email
     display_username = email_clean.split("@")[0]
 
-    # Determine status and approval_token
-    status = "active" if body.role == "user" else "pending"
-    approval_token = generate_token() if body.role == "admin" else None
+    # Determine status — both User and Admin are active immediately!
+    status = "active"
     now = datetime.utcnow().isoformat()
 
     user_doc = {
@@ -218,71 +217,36 @@ async def register(body: RegisterRequest, request: Request):
         "role": body.role,
         "status": status,
         "registered_at": now,
-        "approval_token": approval_token,
-        "approved_at": None,
+        "approval_token": None,
+        "approved_at": now,
         "last_login": None,
     }
 
     await _insert_user(user_doc)
 
-    # Build approval URL
-    base_url = str(request.base_url).rstrip("/")
-    approve_url = f"{base_url}/api/auth/approve?token={approval_token}"
+    # Send welcome email
+    await send_flood_alert(
+        subject=f"[HydroShield] Welcome! Your {body.role.capitalize()} Account is Ready",
+        body_html=build_user_welcome_email(
+            full_name=body.full_name,
+            username=display_username,
+        ),
+        recipient_email=email_clean,
+        email_type="Account Created",
+    )
 
-    if body.role == "admin":
-        # 1. Email to admin (likith824788@gmail.com) with approve button
-        await send_flood_alert(
-            subject=f"[HydroShield] Admin Access Request from {body.full_name}",
-            body_html=build_admin_approval_request_email(
-                full_name=body.full_name,
-                username=display_username,
-                email=email_clean,
-                approve_url=approve_url,
-                registered_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-            ),
-            recipient_email=ADMIN_EMAIL,
-            email_type="Admin Approval Request",
-        )
-        # 2. Email to applicant: "Your request is pending"
-        await send_flood_alert(
-            subject="[HydroShield] Your Admin Access Request is Pending",
-            body_html=build_admin_pending_email(
-                full_name=body.full_name,
-                username=display_username,
-            ),
-            recipient_email=email_clean,
-            email_type="Admin Pending Notification",
-        )
-        return {
-            "success": True,
-            "status": "pending",
-            "message": "Admin request submitted. You will receive an email once approved.",
-            "role": "admin",
+    return {
+        "success": True,
+        "status": "active",
+        "message": "Account created successfully!",
+        "role": body.role,
+        "user": {
+            "name": body.full_name,
+            "username": display_username,
+            "role": body.role,
+            "email": email_clean,
         }
-
-    else:
-        # User: auto-approved, send welcome email
-        await send_flood_alert(
-            subject="[HydroShield] Welcome! Your Field Operator Account is Ready",
-            body_html=build_user_welcome_email(
-                full_name=body.full_name,
-                username=display_username,
-            ),
-            recipient_email=email_clean,
-            email_type="User Welcome",
-        )
-        return {
-            "success": True,
-            "status": "active",
-            "message": "Account created successfully!",
-            "role": "user",
-            "user": {
-                "name": body.full_name,
-                "username": display_username,
-                "role": "user",
-                "email": email_clean,
-            }
-        }
+    }
 
 
 # ── POST /api/auth/login ──────────────────────────────────────────────────
