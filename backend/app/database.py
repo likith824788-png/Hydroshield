@@ -12,9 +12,11 @@ db = Database()
 
 
 async def get_database():
-    """Return active MongoDB database instance."""
+    """Return active MongoDB database instance, or None if unavailable."""
     if db.client is None:
         await connect_db()
+    if db.client is None or not db._connected:
+        return None
     return db.client[settings.DATABASE_NAME]
 
 

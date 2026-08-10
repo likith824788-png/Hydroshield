@@ -1,36 +1,22 @@
-# Dependencies
-node_modules/
-**/node_modules/
-
-# Production / Build
-dist/
-**/dist/
-build/
-**/build/
-
 # Python
 __pycache__/
-**/__pycache__/
 *.py[cod]
 *$py.class
 .venv/
 venv/
+env/
+ENV/
 
 # Environment variables
 .env
-**/.env
 .env.local
-.env.*.local
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
 
 # Uploads & Media
 uploads/*
 !uploads/.gitkeep
-**/uploads/*
 
 # IDE & OS
 .vscode/

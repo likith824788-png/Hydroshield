@@ -17,6 +17,7 @@ from ..services.auth_service import (
     generate_token,
     build_admin_approval_request_email,
     build_admin_approval_granted_email,
+    build_admin_rejection_email,
     build_user_welcome_email,
     build_admin_pending_email,
 )
@@ -296,6 +297,80 @@ async def register(body: RegisterRequest, request: Request):
                 "email": email_clean,
             }
         }
+
+
+
+# ── POST /api/auth/login ──────────────────────────────────────────────────
+@router.post("/login")
+async def login(body: LoginRequest):
+    """
+    Authenticate a user or admin.
+    Checks MongoDB first (falls back to in-memory store if DB is unavailable).
+    Verifies password, checks account status, and updates last_login timestamp.
+    """
+    if body.role not in ("user", "admin"):
+        raise HTTPException(status_code=400, detail="Role must be 'user' or 'admin'.")
+
+    email_clean = body.email.strip().lower()
+
+    # Look up user in DB (or in-memory fallback)
+    user = await _find_user_by_email_and_role(email_clean, body.role)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    # Verify password
+    stored_hash = user.get("password_hash", "")
+    if not verify_password(body.password, stored_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    # Check account status
+    status = user.get("status", "pending")
+    if status == "pending":
+        raise HTTPException(
+            status_code=403,
+            detail="Your admin account is pending approval. Please wait for the administrator to approve your request.",
+        )
+    if status == "rejected":
+        raise HTTPException(
+            status_code=403,
+            detail="Your account access was rejected. Please contact the administrator.",
+        )
+    if status != "active":
+        raise HTTPException(status_code=403, detail="Account is not active.")
+
+    # Update last_login timestamp in DB
+    now_iso = datetime.utcnow().isoformat()
+    col = await _get_collection()
+    if col is not None:
+        try:
+            await col.update_one(
+                {"email": email_clean, "role": body.role},
+                {"$set": {"last_login": now_iso}},
+            )
+        except Exception as e:
+            print(f"[Auth] Warning — Could not update last_login: {e}")
+    else:
+        # Update in-memory fallback
+        for u in _IN_MEMORY_USERS:
+            if u.get("email", "").lower() == email_clean and u.get("role") == body.role:
+                u["last_login"] = now_iso
+                break
+
+    # Build safe user response object
+    user_obj = {
+        "name": user.get("full_name", user.get("username", email_clean.split("@")[0])),
+        "email": email_clean,
+        "username": user.get("username", email_clean.split("@")[0]),
+        "role": body.role,
+        "status": "active",
+    }
+
+    return {
+        "success": True,
+        "message": "Login successful.",
+        "user": user_obj,
+    }
 
 
 # ── GET /api/auth/approve ─────────────────────────────────────────────────

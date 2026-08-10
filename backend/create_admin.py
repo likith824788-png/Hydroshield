@@ -23,7 +23,7 @@ ADMIN_ACCOUNTS = [
         "full_name": "System Administrator",
         "username": "admin",
         "email": "admin@gmail.com",
-        "password_hash": hash_password("hydroshield@admin"),
+        "password_hash": hash_password("Hydroshield"),
         "role": "admin",
         "status": "active",
         "registered_at": datetime.utcnow().isoformat(),
@@ -52,20 +52,23 @@ async def seed():
     db = await get_database()
 
     if db is None:
-        print("[Seed] Warning: MongoDB not connected. In-memory demo admin is active.")
+        print("[Seed] ❌ MongoDB not connected. Cannot seed. Admin credentials are available in the in-memory fallback store.")
         return
 
     col = db["users"]
     for acc in ADMIN_ACCOUNTS:
-        result = await col.update_one(
-            {"email": acc["email"], "role": acc["role"]},
-            {"$set": acc},
-            upsert=True
-        )
-        if result.upserted_id:
-            print(f"✅ Created {acc['role']} account: {acc['email']}")
-        else:
-            print(f"🔄 Updated {acc['role']} account to active: {acc['email']}")
+        try:
+            result = await col.update_one(
+                {"email": acc["email"], "role": acc["role"]},
+                {"$set": acc},
+                upsert=True
+            )
+            if result.upserted_id:
+                print(f"✅ Created {acc['role']} account: {acc['email']}")
+            else:
+                print(f"🔄 Updated {acc['role']} account to active: {acc['email']}")
+        except Exception as e:
+            print(f"❌ Failed to upsert {acc['email']}: {e}")
 
     await close_db()
     print("Done!")
